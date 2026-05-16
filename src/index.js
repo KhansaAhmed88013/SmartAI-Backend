@@ -48,10 +48,10 @@ const init = async () => {
   // start generator
   const interval = parseInt(process.env.DATA_INTERVAL_SECONDS || '5')
   const demoEnv = typeof process.env.DEMO === 'string' ? process.env.DEMO.toLowerCase() : undefined
-  const demoEnabled = demoEnv ? demoEnv === 'true' : true
-  // ensure at least one demo machine exists so generator has data to produce
+  const demoEnabled = demoEnv === 'true'
+  // ensure at least one demo machine exists only when demo mode is enabled
   const existing = await Machine.findOne()
-  if (!existing) {
+  if (demoEnabled && !existing) {
     const demo = new Machine({
       hardwareId: `HW-${Math.random().toString(36).slice(2, 10)}`,
       machineName: 'Demo Machine 1',

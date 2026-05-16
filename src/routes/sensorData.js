@@ -21,9 +21,22 @@ const getDefaultThresholds = () => ({
   current: { warning: 55, critical: 60 }
 })
 
-router.post('/', async (req, res) => {
+const isDemoEnabled = () => {
+  const demoEnv = typeof process.env.DEMO === 'string' ? process.env.DEMO.toLowerCase().replace(/['"]/g, '') : ''
+  return demoEnv === 'true'
+}
+
+const handleSensorData = async (req, res) => {
   try {
     const { hardwareId, temperature, vibration, current, timestamp } = req.body || {}
+
+    console.log('Incoming sensor data request', {
+      path: req.originalUrl,
+      method: req.method,
+      ip: req.ip,
+      hardwareId,
+      payload: { temperature, vibration, current, timestamp }
+    })
 
     if (!hardwareId) {
       return res.status(400).json({ error: 'hardwareId is required' })
@@ -46,10 +59,7 @@ router.post('/', async (req, res) => {
 
     if (!machine) {
       // Determine if DEMO mode is enabled
-      const demoEnv = typeof process.env.DEMO === 'string' ? process.env.DEMO.toLowerCase() : undefined
-      const demoEnabled = demoEnv ? demoEnv === 'true' : true
-
-      if (demoEnabled) {
+      if (isDemoEnabled()) {
         // Auto-create machine in DEMO mode
         machine = new Machine({
           hardwareId,
@@ -60,7 +70,6 @@ router.post('/', async (req, res) => {
           thresholds: getDefaultThresholds()
         })
         await machine.save()
-        console.log(`Auto-created machine for hardwareId ${hardwareId}`)
       } else {
         // Return error in non-DEMO mode
         return res.status(404).json({ error: `Machine with hardwareId ${hardwareId} not found` })
@@ -77,7 +86,9 @@ router.post('/', async (req, res) => {
     console.error('Error in /api/sensor-data:', err)
     return res.status(500).json({ error: 'Server error' })
   }
-})
+}
+
+router.post('/', handleSensorData)
 
 // Simple GET example that returns a sample payload for clients
 router.get('/example', (req, res) => {
