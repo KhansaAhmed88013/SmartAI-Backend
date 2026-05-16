@@ -11,6 +11,7 @@ import analyticsRoutes from './routes/analytics.js'
 import commandsRoutes from './routes/commands.js'
 import usersRoutes from './routes/users.js'
 import { startDataGenerator } from './services/dataGenerator.js'
+import sensorDataRoutes from './routes/sensorData.js'
 import User from './models/User.js'
 import Machine from './models/Machine.js'
 import bcrypt from 'bcrypt'
@@ -28,6 +29,7 @@ app.use('/api/insights', insightsRoutes)
 app.use('/api', analyticsRoutes)
 app.use('/api/commands', commandsRoutes)
 app.use('/api/users', usersRoutes)
+app.use('/api/sensor-data', sensorDataRoutes)
 
 const PORT = process.env.PORT || 4000
 
@@ -45,6 +47,8 @@ const init = async () => {
 
   // start generator
   const interval = parseInt(process.env.DATA_INTERVAL_SECONDS || '5')
+  const demoEnv = typeof process.env.DEMO === 'string' ? process.env.DEMO.toLowerCase() : undefined
+  const demoEnabled = demoEnv ? demoEnv === 'true' : true
   // ensure at least one demo machine exists so generator has data to produce
   const existing = await Machine.findOne()
   if (!existing) {
@@ -64,7 +68,11 @@ const init = async () => {
     console.log('Seeded demo machine')
   }
 
-  startDataGenerator(interval)
+  if (demoEnabled) {
+    startDataGenerator(interval)
+  } else {
+    console.log('DEMO disabled; not starting demo data generator')
+  }
 
   app.listen(PORT, () => console.log(`SmartAI backend listening on ${PORT}`))
 }
