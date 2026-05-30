@@ -303,6 +303,10 @@ export class MachineDataIngestionService {
 
     await sensorDoc.save()
 
+    console.log(
+      `SensorData received for machine ${machine.machineName || machine.hardwareId || machine._id}: temp=${sensorDoc.temperature}, vib=${sensorDoc.vibration}, curr=${sensorDoc.current}, source=${machine.hardwareId || machine._id}`
+    )
+
     await dispatchPendingCommands(machine)
     await createActualAlerts(machine, sensorDoc)
     await generatePredictions(machine)
