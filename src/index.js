@@ -8,13 +8,13 @@ import dashboardRoutes from './routes/dashboard.js'
 import predictionRoutes from './routes/predictions.js'
 import insightsRoutes from './routes/insights.js'
 import analyticsRoutes from './routes/analytics.js'
-import commandsRoutes from './routes/commands.js'
 import usersRoutes from './routes/users.js'
 import { startDataGenerator } from './services/dataGenerator.js'
 import sensorDataRoutes from './routes/sensorData.js'
 import User from './models/User.js'
 import Machine from './models/Machine.js'
 import bcrypt from 'bcrypt'
+import { startRetrainCron } from './cron/retrainModels.js'
 
 dotenv.config()
 const app = express()
@@ -27,7 +27,6 @@ app.use('/api', dashboardRoutes)
 app.use('/api/predictions', predictionRoutes)
 app.use('/api/insights', insightsRoutes)
 app.use('/api', analyticsRoutes)
-app.use('/api/commands', commandsRoutes)
 app.use('/api/users', usersRoutes)
 app.use('/api/sensor-data', sensorDataRoutes)
 
@@ -35,6 +34,7 @@ const PORT = process.env.PORT || 4000
 
 const init = async () => {
   await connectDB()
+  startRetrainCron()
 
   // create default admin if not exists
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@smartai.local'

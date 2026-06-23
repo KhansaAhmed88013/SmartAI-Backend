@@ -4,20 +4,6 @@ import { receiveSensorData } from '../services/machineDataIngestionService.js'
 
 const router = express.Router()
 
-const getDefaultThresholds = () => ({
-  temperature: { warning: 75, critical: 80 },
-  vibration: { warning: 4.5, critical: 6.0 },
-  current: { warning: 55, critical: 60 }
-})
-
-const isDemoEnabled = () => {
-  const demoEnv =
-    typeof process.env.DEMO === 'string'
-      ? process.env.DEMO.toLowerCase().replace(/['"]/g, '')
-      : ''
-  return demoEnv === 'true'
-}
-
 const handleSensorData = async (req, res) => {
   try {
     const { hardwareId, temperature, vibration, current, timestamp } = req.body || {}
@@ -46,22 +32,18 @@ const handleSensorData = async (req, res) => {
     let machine = await Machine.findOne({ hardwareId })
 
     if (!machine) {
-      if (isDemoEnabled()) {
-        machine = new Machine({
-          hardwareId,
-          machineName: `Auto Machine ${hardwareId}`,
-          location: 'Unassigned',
-          status: 'RUNNING',
-          speed: 1000,
-          thresholds: getDefaultThresholds()
-        })
-        await machine.save()
-      } else {
-        return res.status(404).json({
-          error: `Machine with hardwareId ${hardwareId} not found`
-        })
-      }
+      machine = new Machine({
+        hardwareId,
+        machineName: `Pending-${hardwareId.slice(0, 6)}`, 
+        location: 'Unassigned',
+        status: 'PENDING',
+        speed: 0
+      })
+      console.warn(`Auto-registered new PENDING machine for hardwareId ${hardwareId}`)
+      await machine.save()
     }
+    console.log("API SENSOR ROUTE HIT");
+console.log(machine._id);
 
     const saved = await receiveSensorData(machine._id, parsed)
     return res.json({ success: true, data: saved })

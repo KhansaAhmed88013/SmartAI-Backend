@@ -30,12 +30,36 @@ const validateThresholds = (t) => {
   return { ok: true }
 }
 
+const HEARTBEAT_TIMEOUT_MS = 5 * 60 * 1000
+
+const deriveMachineStatus = (machine) => {
+  if (!machine || machine.status === 'PENDING') return 'PENDING'
+
+  const lastSensorAt = machine.lastSensorAt
+    ? new Date(machine.lastSensorAt).getTime()
+    : null
+
+  if (!lastSensorAt) return 'STOPPED'
+
+  const age = Date.now() - lastSensorAt
+
+  if (age > HEARTBEAT_TIMEOUT_MS) return 'STOPPED'
+
+  if (machine.status === 'WARNING') return 'WARNING'
+
+  return 'RUNNING'
+}
+
 // List machines; include stopped ones so UI can select them. Exclude only PENDING by default.
 router.get('/', authenticate, async (req, res) => {
   const includePending = String(req.query.includePending || '').toLowerCase() === 'true'
   const filter = includePending ? {} : { status: { $ne: 'PENDING' } }
-  const machines = await Machine.find(filter)
-  res.json(machines)
+  const machines = await Machine.find(filter).lean()
+  const machinesWithEffectiveStatus = machines.map((machine) => ({
+    ...machine,
+    effectiveStatus: deriveMachineStatus(machine)
+  }))
+  res.json(machinesWithEffectiveStatus)
 })
 
 // Admin: list pending machines

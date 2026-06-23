@@ -40,7 +40,8 @@ class ForecastServiceImpl {
       temperature: predictedTemp,
       vibration: predictedVib,
       current: predictedCurr,
-      confidence: Math.round(confidence * 100) / 100
+      confidence: Math.round(confidence * 100) / 100,
+      predictionSource: 'FORECAST_SERVICE'
     })
     await doc.save()
     return doc

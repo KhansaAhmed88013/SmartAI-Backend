@@ -28,6 +28,9 @@ const MachineSchema = new mongoose.Schema({
   activatedAt: { type: Date },
   activatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 
+  // Latest time the machine sent sensor data
+  lastSensorAt: { type: Date },
+
   createdAt: { type: Date, default: Date.now }
 })
 
