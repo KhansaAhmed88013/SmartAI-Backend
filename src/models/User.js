@@ -6,8 +6,17 @@ const UserSchema = new mongoose.Schema({
   passwordHash: { type: String, required: true },
   // Canonical roles: SYSTEM_ADMIN, MAINTENANCE_ENGINEER, MACHINE_OPERATOR
   // Legacy aliases retained for backward compatibility: ADMIN, OPERATOR
-  role: { type: String, enum: ['SYSTEM_ADMIN', 'MAINTENANCE_ENGINEER', 'MACHINE_OPERATOR', 'ADMIN', 'OPERATOR'], default: 'MACHINE_OPERATOR' },
-  notifications: {
+  role: {
+  type: String,
+  enum: [
+    'SYSTEM_ADMIN',
+    'MACHINE_OPERATOR',
+    'ADMIN',
+    'OPERATOR'
+  ],
+  default: 'MACHINE_OPERATOR'
+},
+notifications: {
     sms: { type: Boolean, default: false },
     email: { type: Boolean, default: true }
   },

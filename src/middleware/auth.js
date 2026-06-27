@@ -18,7 +18,7 @@ export const authenticate = (req, res, next) => {
   // Fallback: Demo mode attaches a demo user only when no token provided
   const demoEnv = process.env.DEMO ? String(process.env.DEMO).toLowerCase().replace(/['"]/g, '') : ''
   if (demoEnv === 'true') {
-    req.user = { id: 'demo', role: 'ADMIN', email: 'demo@smartai.local' }
+    req.user = { id: 'demo', role: 'SYSTEM_ADMIN', email: 'demo@smartai.local' }
     return next()
   }
 
