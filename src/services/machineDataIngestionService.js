@@ -121,7 +121,13 @@ const runMlPrediction = async (signalName, values, predictor) => {
   }
 };
 
-const applySignalForecast = (prediction, signalName, forecast, confidence) => {
+const applySignalForecast = (
+  prediction,
+  signalName,
+  forecast,
+  confidence,
+  latestValue
+) => {
   if (!forecast || !Array.isArray(forecast.forecast) || forecast.forecast.length === 0) {
     return false;
   }
@@ -129,9 +135,16 @@ const applySignalForecast = (prediction, signalName, forecast, confidence) => {
   const config = SIGNAL_MODEL_CONFIG[signalName];
   if (!config) return false;
 
-  const primaryValue = forecast.forecast[0];
-  prediction[config.field] = primaryValue;
-  prediction[config.valuesField] = forecast.forecast;
+  const cleanedForecast = forecast.forecast.map(value => {
+    const num = Number(value);
+    if (num < 0) {
+      return latestValue;
+    }
+    return num;
+  });
+
+prediction[config.field] = cleanedForecast[0];
+prediction[config.valuesField] = cleanedForecast;
   prediction[`${signalName}ModelName`] = ML_MODEL_NAME;
   prediction[`${signalName}ModelVersion`] = config.modelVersion;
   prediction[`${signalName}PredictionSource`] = ML_PREDICTION_SOURCE;
@@ -399,6 +412,10 @@ const generatePredictions = async (machine) => {
     getLatestSignalValues(machine._id, "vibration"),
   ])
 
+  const latestTemperature = temperatureValues?.[temperatureValues.length - 1];
+  const latestCurrent = currentValues?.[currentValues.length - 1];
+  const latestVibration = vibrationValues?.[vibrationValues.length - 1];
+
   console.log("Temperature values found:", temperatureValues ? temperatureValues.length : 0)
   console.log("Current values found:", currentValues ? currentValues.length : 0)
   console.log("Vibration values found:", vibrationValues ? vibrationValues.length : 0)
@@ -435,6 +452,7 @@ const generatePredictions = async (machine) => {
             "temperature",
             mlTemperature,
             mlTemperature.confidence,
+            latestTemperature
           )
           prediction.forecastValues = mlTemperature.forecast
         }
@@ -445,6 +463,7 @@ const generatePredictions = async (machine) => {
             "current",
             mlCurrent,
             mlCurrent.confidence,
+            latestCurrent
           )
         }
 
@@ -454,6 +473,7 @@ const generatePredictions = async (machine) => {
             "vibration",
             mlVibration,
             mlVibration.confidence,
+            latestVibration
           )
         }
 
