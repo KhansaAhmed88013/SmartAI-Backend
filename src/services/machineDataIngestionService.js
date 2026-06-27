@@ -270,22 +270,38 @@ const createActualAlerts = async (machine, sensorDoc) => {
         resolved: false,
         threshold: c.thresh.critical,
       });
-      if (!exists) {
-        console.log('[Alert] Creating HIGH alert for', c.param, '— value:', c.value, 'threshold:', c.thresh.critical)
-        const alertDoc = await new Alert({
-          machineId: machine._id,
-          parameter: c.param,
-          value: c.value,
-          threshold: c.thresh.critical,
-          severity: "HIGH",
-          source: "ACTUAL",
-          message: `${c.param} exceeded critical`,
-          timestamp: new Date(),
-        }).save();
-        await sendAlertEmailToUsers(alertDoc, machine).catch((err) => {
-          console.error('Failed to send alert email for actual HIGH alert', err)
-        })
-      }
+      if (exists) {
+  console.log("[Alert] Alert already exists. Sending email again.");
+
+  exists.value = c.value;
+  exists.timestamp = new Date();
+  exists.message = `${c.param} exceeded critical`;
+
+  await exists.save();
+
+  await sendAlertEmailToUsers(exists, machine).catch((err) => {
+    console.error("Failed to send email", err);
+  });
+
+} else {
+
+  console.log("[Alert] Creating new HIGH alert");
+
+  const alertDoc = await new Alert({
+    machineId: machine._id,
+    parameter: c.param,
+    value: c.value,
+    threshold: c.thresh.critical,
+    severity: "HIGH",
+    source: "ACTUAL",
+    message: `${c.param} exceeded critical`,
+    timestamp: new Date(),
+  }).save();
+
+  await sendAlertEmailToUsers(alertDoc, machine).catch((err) => {
+    console.error("Failed to send email", err);
+  });
+}
     } else if (c.value >= c.thresh.warning) {
       hasThresholdViolation = true;
       const exists = await Alert.findOne({
@@ -296,22 +312,40 @@ const createActualAlerts = async (machine, sensorDoc) => {
         resolved: false,
         threshold: c.thresh.warning,
       });
-      if (!exists) {
-        console.log('[Alert] Creating MEDIUM alert for', c.param, '— value:', c.value, 'threshold:', c.thresh.warning)
-        const alertDoc = await new Alert({
-          machineId: machine._id,
-          parameter: c.param,
-          value: c.value,
-          threshold: c.thresh.warning,
-          severity: "MEDIUM",
-          source: "ACTUAL",
-          message: `${c.param} exceeded warning`,
-          timestamp: new Date(),
-        }).save();
-        await sendAlertEmailToUsers(alertDoc, machine).catch((err) => {
-          console.error('Failed to send alert email for actual MEDIUM alert', err)
-        })
-      }
+      if (exists) {
+
+  console.log("[Alert] MEDIUM alert already exists. Sending email again.");
+
+  exists.value = c.value;
+  exists.timestamp = new Date();
+  exists.message = `${c.param} exceeded warning`;
+
+  await exists.save();
+
+  await sendAlertEmailToUsers(exists, machine).catch((err) => {
+    console.error("Failed to send email", err);
+  });
+
+} else {
+
+  console.log("[Alert] Creating new MEDIUM alert");
+
+  const alertDoc = await new Alert({
+    machineId: machine._id,
+    parameter: c.param,
+    value: c.value,
+    threshold: c.thresh.warning,
+    severity: "MEDIUM",
+    source: "ACTUAL",
+    message: `${c.param} exceeded warning`,
+    timestamp: new Date(),
+  }).save();
+
+  await sendAlertEmailToUsers(alertDoc, machine).catch((err) => {
+    console.error("Failed to send email", err);
+  });
+
+}
     }
   }
 
@@ -363,21 +397,40 @@ const createPredictedAlerts = async (machine, prediction, horizonKey) => {
         threshold: c.thresh.critical,
       });
 
-      if (!exists) {
-        const alertDoc = await new Alert({
-          machineId: machine._id,
-          parameter: c.param,
-          value: c.value,
-          threshold: c.thresh.critical,
-          severity: "HIGH",
-          source: "PREDICTED",
-          message: `${base} (critical)`,
-          timestamp: new Date(),
-        }).save();
-        await sendAlertEmailToUsers(alertDoc, machine).catch((err) => {
-          console.error('Failed to send alert email for predicted HIGH alert', err)
-        })
-      }
+      if (exists) {
+
+  console.log("[Alert] Predicted HIGH alert already exists. Sending email again.");
+
+  exists.value = c.value;
+  exists.timestamp = new Date();
+  exists.message = `${base} (critical)`;
+
+  await exists.save();
+
+  await sendAlertEmailToUsers(exists, machine).catch((err) => {
+    console.error("Failed to send email", err);
+  });
+
+} else {
+
+  console.log("[Alert] Creating new predicted HIGH alert");
+
+  const alertDoc = await new Alert({
+    machineId: machine._id,
+    parameter: c.param,
+    value: c.value,
+    threshold: c.thresh.critical,
+    severity: "HIGH",
+    source: "PREDICTED",
+    message: `${base} (critical)`,
+    timestamp: new Date(),
+  }).save();
+
+  await sendAlertEmailToUsers(alertDoc, machine).catch((err) => {
+    console.error("Failed to send email", err);
+  });
+
+}
     } else if (c.value >= c.thresh.warning) {
       const exists = await Alert.findOne({
         machineId: machine._id,
@@ -388,21 +441,40 @@ const createPredictedAlerts = async (machine, prediction, horizonKey) => {
         threshold: c.thresh.warning,
       });
 
-      if (!exists) {
-        const alertDoc = await new Alert({
-          machineId: machine._id,
-          parameter: c.param,
-          value: c.value,
-          threshold: c.thresh.warning,
-          severity: "MEDIUM",
-          source: "PREDICTED",
-          message: `${base} (warning)`,
-          timestamp: new Date(),
-        }).save();
-        await sendAlertEmailToUsers(alertDoc, machine).catch((err) => {
-          console.error('Failed to send alert email for predicted MEDIUM alert', err)
-        })
-      }
+      if (exists) {
+
+  console.log("[Alert] Predicted MEDIUM alert already exists. Sending email again.");
+
+  exists.value = c.value;
+  exists.timestamp = new Date();
+  exists.message = `${base} (warning)`;
+
+  await exists.save();
+
+  await sendAlertEmailToUsers(exists, machine).catch((err) => {
+    console.error("Failed to send email", err);
+  });
+
+} else {
+
+  console.log("[Alert] Creating new predicted MEDIUM alert");
+
+  const alertDoc = await new Alert({
+    machineId: machine._id,
+    parameter: c.param,
+    value: c.value,
+    threshold: c.thresh.warning,
+    severity: "MEDIUM",
+    source: "PREDICTED",
+    message: `${base} (warning)`,
+    timestamp: new Date(),
+  }).save();
+
+  await sendAlertEmailToUsers(alertDoc, machine).catch((err) => {
+    console.error("Failed to send email", err);
+  });
+
+}
     }
   }
 };
