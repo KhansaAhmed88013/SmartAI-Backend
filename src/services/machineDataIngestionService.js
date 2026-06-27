@@ -435,6 +435,31 @@ const generatePredictions = async (machine) => {
     if (basePrediction) {
       const prediction = { ...basePrediction }
 
+      // ── Global negative-value guard (applies to ALL horizons) ──
+      // Never show negative predictions — replace with last real sensor reading
+      if (typeof prediction.temperature === "number" && prediction.temperature < 0) {
+        prediction.temperature = latestTemperature;
+      }
+      if (typeof prediction.current === "number" && prediction.current < 0) {
+        prediction.current = latestCurrent;
+      }
+      if (typeof prediction.vibration === "number" && prediction.vibration < 0) {
+        prediction.vibration = latestVibration;
+      }
+      if (Array.isArray(prediction.forecastValues)) {
+        prediction.forecastValues = prediction.forecastValues.map(v => (Number(v) < 0 ? latestTemperature : Number(v)));
+      }
+      if (Array.isArray(prediction.temperatureForecastValues)) {
+        prediction.temperatureForecastValues = prediction.temperatureForecastValues.map(v => (Number(v) < 0 ? latestTemperature : Number(v)));
+      }
+      if (Array.isArray(prediction.currentForecastValues)) {
+        prediction.currentForecastValues = prediction.currentForecastValues.map(v => (Number(v) < 0 ? latestCurrent : Number(v)));
+      }
+      if (Array.isArray(prediction.vibrationForecastValues)) {
+        prediction.vibrationForecastValues = prediction.vibrationForecastValues.map(v => (Number(v) < 0 ? latestVibration : Number(v)));
+      }
+      // ────────────────────────────────────────────────────────────
+
       if (
         horizon === ML_FORECAST_HORIZON &&
         (mlTemperature || mlCurrent || mlVibration)
