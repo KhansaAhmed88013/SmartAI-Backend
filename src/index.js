@@ -37,7 +37,7 @@ const init = async () => {
   startRetrainCron()
 
   // create default admin if not exists
-  const adminEmail = process.env.ADMIN_EMAIL || 'admin@smartai.local'
+  const adminEmail = process.env.ADMIN_EMAIL || 'khansa88013@gmail.com'
   const admin = await User.findOne({ email: adminEmail })
   if (!admin) {
     const hash = await bcrypt.hash(process.env.ADMIN_PWD || 'adminpass', 10)
