@@ -231,7 +231,11 @@ const smoothVibrationReading = async (machineId, rawVibration) => {
 };
 
 const createActualAlerts = async (machine, sensorDoc) => {
-  if (!machine.thresholds || machine.status === "PENDING") return;
+  console.log('[Alert] createActualAlerts fired — status:', machine.status, '| thresholds:', JSON.stringify(machine.thresholds))
+  if (!machine.thresholds || machine.status === "PENDING") {
+    console.warn('[Alert] Skipping — no thresholds set or machine is PENDING')
+    return;
+  }
 
   const checks = [
     {
@@ -267,6 +271,7 @@ const createActualAlerts = async (machine, sensorDoc) => {
         threshold: c.thresh.critical,
       });
       if (!exists) {
+        console.log('[Alert] Creating HIGH alert for', c.param, '— value:', c.value, 'threshold:', c.thresh.critical)
         const alertDoc = await new Alert({
           machineId: machine._id,
           parameter: c.param,
@@ -292,6 +297,7 @@ const createActualAlerts = async (machine, sensorDoc) => {
         threshold: c.thresh.warning,
       });
       if (!exists) {
+        console.log('[Alert] Creating MEDIUM alert for', c.param, '— value:', c.value, 'threshold:', c.thresh.warning)
         const alertDoc = await new Alert({
           machineId: machine._id,
           parameter: c.param,

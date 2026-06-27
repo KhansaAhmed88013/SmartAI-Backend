@@ -103,8 +103,18 @@ const buildText = (alert, machine, user) => {
 }
 
 export const sendAlertEmailToUsers = async (alert, machine) => {
+  // DEBUG: log env vars (remove after confirming emails work)
+  console.log('[Email] EMAIL_HOST:', EMAIL_HOST)
+  console.log('[Email] EMAIL_USER:', EMAIL_USER)
+  console.log('[Email] EMAIL_PASS set:', !!EMAIL_PASS)
+
   const users = await User.find({ 'notifications.email': true }).select('name email').lean()
+
+  // DEBUG: log how many users will receive the email
+  console.log('[Email] Users with email notifications enabled:', users?.length ?? 0, users?.map(u => u.email))
+
   if (!users || users.length === 0) {
+    console.warn('[Email] No users found with notifications.email=true — email not sent')
     return null
   }
 
@@ -119,5 +129,13 @@ export const sendAlertEmailToUsers = async (alert, machine) => {
     })
   )
 
-  return Promise.all(sendPromises)
+  const results = await Promise.allSettled(sendPromises)
+  results.forEach((r, i) => {
+    if (r.status === 'fulfilled') {
+      console.log(`[Email] Sent successfully to ${users[i].email}`)
+    } else {
+      console.error(`[Email] Failed to send to ${users[i].email}:`, r.reason)
+    }
+  })
+  return results
 }
