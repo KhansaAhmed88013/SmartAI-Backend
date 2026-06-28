@@ -2,7 +2,7 @@ import mongoose from 'mongoose'
 
 const PredictionSchema = new mongoose.Schema({
   machineId: { type: mongoose.Schema.Types.ObjectId, ref: 'Machine', required: true },
-  horizon: { type: String, enum: ['15m','1h','6h','24h'], required: true },
+  horizon: { type: String, enum: ['15m','30m','45m','1h'], required: true },
   temperature: { type: Number },
   vibration: { type: Number },
   current: { type: Number },

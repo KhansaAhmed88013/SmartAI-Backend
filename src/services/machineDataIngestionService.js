@@ -10,7 +10,7 @@ import {
   predictVibration,
 } from "./mlPredictionClient.js";
 
-const horizons = ["15m", "1h", "6h", "24h"];
+const horizons = ["15m", "30m", "45m", "1h"];
 const ML_FORECAST_HORIZON = "1h";
 const DEFAULT_ML_CONFIDENCE = 0.8;
 const ML_MODEL_NAME = "Autoformer";
@@ -361,7 +361,7 @@ const createActualAlerts = async (machine, sensorDoc) => {
 const createPredictedAlerts = async (machine, prediction, horizonKey) => {
   if (!machine.thresholds) return;
 
-  const minsMap = { "15m": 15, "1h": 60, "6h": 360, "24h": 1440 };
+  const minsMap = { "15m": 15, "30m": 30, "45m": 45, "1h": 60 };
   const mins = minsMap[horizonKey] || 60;
 
   const checks = [
@@ -490,163 +490,137 @@ const generatePredictions = async (machine) => {
     getLatestSignalValues(machine._id, "vibration"),
   ])
 
-  const latestTemperature = temperatureValues?.[temperatureValues.length - 1];
-  const latestCurrent = currentValues?.[currentValues.length - 1];
-  const latestVibration = vibrationValues?.[vibrationValues.length - 1];
+  const latestTemperature = temperatureValues?.[temperatureValues.length - 1] ?? 0;
+  const latestCurrent = currentValues?.[currentValues.length - 1] ?? 0;
+  const latestVibration = vibrationValues?.[vibrationValues.length - 1] ?? 0;
 
   console.log("Temperature values found:", temperatureValues ? temperatureValues.length : 0)
   console.log("Current values found:", currentValues ? currentValues.length : 0)
   console.log("Vibration values found:", vibrationValues ? vibrationValues.length : 0)
 
-  const [mlTemperature, mlCurrent, mlVibration] = await Promise.all([
-    runMlPrediction("temperature", temperatureValues, predictTemperature),
-    runMlPrediction("current", currentValues, predictCurrent),
-    runMlPrediction("vibration", vibrationValues, predictVibration),
-  ])
+  // Try running ML predictions
+  let mlTemperature = null;
+  let mlCurrent = null;
+  let mlVibration = null;
 
-  for (const horizon of horizons) {
-    const basePrediction = await ForecastService.generatePrediction(
-      machine._id,
-      horizon
-    )
+  if (temperatureValues && temperatureValues.length >= 61 &&
+      currentValues && currentValues.length >= 61 &&
+      vibrationValues && vibrationValues.length >= 61) {
+    [mlTemperature, mlCurrent, mlVibration] = await Promise.all([
+      runMlPrediction("temperature", temperatureValues, predictTemperature),
+      runMlPrediction("current", currentValues, predictCurrent),
+      runMlPrediction("vibration", vibrationValues, predictVibration),
+    ])
+  }
 
-    if (basePrediction) {
-      const prediction = { ...basePrediction }
+  let tempForecast = [];
+  let currForecast = [];
+  let vibForecast = [];
+  let confidence = DEFAULT_ML_CONFIDENCE;
+  let predictionSource = ML_PREDICTION_SOURCE;
+  let modelName = ML_MODEL_NAME;
+  let modelVersion = ML_MODEL_VERSION;
 
-      // ── Global negative-value guard (applies to ALL horizons) ──
-      // Never show negative predictions — replace with last real sensor reading
-      if (typeof prediction.temperature === "number" && prediction.temperature < 0) {
-        prediction.temperature = latestTemperature;
-      }
-      if (typeof prediction.current === "number" && prediction.current < 0) {
-        prediction.current = latestCurrent;
-      }
-      if (typeof prediction.vibration === "number" && prediction.vibration < 0) {
-        prediction.vibration = latestVibration;
-      }
-      if (Array.isArray(prediction.forecastValues)) {
-        prediction.forecastValues = prediction.forecastValues.map(v => (Number(v) < 0 ? latestTemperature : Number(v)));
-      }
-      if (Array.isArray(prediction.temperatureForecastValues)) {
-        prediction.temperatureForecastValues = prediction.temperatureForecastValues.map(v => (Number(v) < 0 ? latestTemperature : Number(v)));
-      }
-      if (Array.isArray(prediction.currentForecastValues)) {
-        prediction.currentForecastValues = prediction.currentForecastValues.map(v => (Number(v) < 0 ? latestCurrent : Number(v)));
-      }
-      if (Array.isArray(prediction.vibrationForecastValues)) {
-        prediction.vibrationForecastValues = prediction.vibrationForecastValues.map(v => (Number(v) < 0 ? latestVibration : Number(v)));
-      }
-      // ────────────────────────────────────────────────────────────
+  const hasMlData = mlTemperature && Array.isArray(mlTemperature.forecast) && mlTemperature.forecast.length > 0 &&
+                    mlCurrent && Array.isArray(mlCurrent.forecast) && mlCurrent.forecast.length > 0 &&
+                    mlVibration && Array.isArray(mlVibration.forecast) && mlVibration.forecast.length > 0;
 
-      if (
-        horizon === ML_FORECAST_HORIZON &&
-        (mlTemperature || mlCurrent || mlVibration)
-      ) {
-        const primaryForecast = mlTemperature || mlCurrent || mlVibration
+  if (hasMlData) {
+    tempForecast = mlTemperature.forecast.map(v => Number(v) < 0 ? latestTemperature : Number(v));
+    currForecast = mlCurrent.forecast.map(v => Number(v) < 0 ? latestCurrent : Number(v));
+    vibForecast = mlVibration.forecast.map(v => Number(v) < 0 ? latestVibration : Number(v));
+    confidence = mlTemperature.confidence ?? DEFAULT_ML_CONFIDENCE;
+  } else {
+    // FALLBACK generator to produce exactly 24 points at 2.5 min intervals using simple forecast
+    console.log("ML prediction failed or insufficient history. Using consistent fallback generator.");
+    predictionSource = "FORECAST_SERVICE";
+    modelName = "Regression/MA";
+    modelVersion = "ma_linear_v1";
+    confidence = 0.7;
 
-        prediction.modelName = ML_MODEL_NAME
-        prediction.modelVersion = ML_MODEL_VERSION
-        prediction.predictionSource = ML_PREDICTION_SOURCE
-        prediction.confidence = DEFAULT_ML_CONFIDENCE
+    const recentTemp = temperatureValues || [0];
+    const recentCurr = currentValues || [0];
+    const recentVib = vibrationValues || [0];
 
-        if (mlTemperature) {
-          applySignalForecast(
-            prediction,
-            "temperature",
-            mlTemperature,
-            mlTemperature.confidence,
-            latestTemperature
-          )
-          prediction.forecastValues = mlTemperature.forecast
-        }
+    const tempAvg = recentTemp.reduce((sum, v) => sum + v, 0) / recentTemp.length;
+    const currAvg = recentCurr.reduce((sum, v) => sum + v, 0) / recentCurr.length;
+    const vibAvg = recentVib.reduce((sum, v) => sum + v, 0) / recentVib.length;
 
-        if (mlCurrent) {
-          applySignalForecast(
-            prediction,
-            "current",
-            mlCurrent,
-            mlCurrent.confidence,
-            latestCurrent
-          )
-        }
+    const firstTemp = recentTemp[0] ?? 0;
+    const lastTemp = recentTemp[recentTemp.length - 1] ?? 0;
+    const firstCurr = recentCurr[0] ?? 0;
+    const lastCurr = recentCurr[recentCurr.length - 1] ?? 0;
+    const firstVib = recentVib[0] ?? 0;
+    const lastVib = recentVib[recentVib.length - 1] ?? 0;
 
-        if (mlVibration) {
-          applySignalForecast(
-            prediction,
-            "vibration",
-            mlVibration,
-            mlVibration.confidence,
-            latestVibration
-          )
-        }
+    const minutesSpan = recentTemp.length > 1 ? recentTemp.length * 5 : 5;
 
-        if (!prediction.forecastValues && primaryForecast) {
-          prediction.forecastValues = primaryForecast.forecast
-        }
+    for (let i = 1; i <= 24; i++) {
+      const minutes = i * 2.5;
+      
+      const pTemp = tempAvg + ((lastTemp - firstTemp) / minutesSpan) * minutes;
+      const pCurr = currAvg + ((lastCurr - firstCurr) / minutesSpan) * minutes;
+      const pVib = vibAvg + ((lastVib - firstVib) / minutesSpan) * minutes;
 
-        try {
-          if (typeof basePrediction.save === 'function') {
-            basePrediction.temperature = prediction.temperature
-            basePrediction.current = prediction.current
-            basePrediction.vibration = prediction.vibration
-            basePrediction.forecastValues = prediction.forecastValues
-            basePrediction.temperatureForecastValues = prediction.temperatureForecastValues
-            basePrediction.currentForecastValues = prediction.currentForecastValues
-            basePrediction.vibrationForecastValues = prediction.vibrationForecastValues
-            basePrediction.confidence = prediction.confidence
-            basePrediction.modelName = prediction.modelName
-            basePrediction.modelVersion = prediction.modelVersion
-            basePrediction.predictionSource = prediction.predictionSource
-            basePrediction.temperatureModelName = prediction.temperatureModelName
-            basePrediction.temperatureModelVersion = prediction.temperatureModelVersion
-            basePrediction.temperaturePredictionSource = prediction.temperaturePredictionSource
-            basePrediction.currentModelName = prediction.currentModelName
-            basePrediction.currentModelVersion = prediction.currentModelVersion
-            basePrediction.currentPredictionSource = prediction.currentPredictionSource
-            basePrediction.vibrationModelName = prediction.vibrationModelName
-            basePrediction.vibrationModelVersion = prediction.vibrationModelVersion
-            basePrediction.vibrationPredictionSource = prediction.vibrationPredictionSource
-            await basePrediction.save()
-          } else {
-            await Prediction.findByIdAndUpdate(basePrediction._id, {
-              temperature: prediction.temperature,
-              current: prediction.current,
-              vibration: prediction.vibration,
-              forecastValues: prediction.forecastValues,
-              temperatureForecastValues: prediction.temperatureForecastValues,
-              currentForecastValues: prediction.currentForecastValues,
-              vibrationForecastValues: prediction.vibrationForecastValues,
-              confidence: prediction.confidence,
-              modelName: prediction.modelName,
-              modelVersion: prediction.modelVersion,
-              predictionSource: prediction.predictionSource,
-              temperatureModelName: prediction.temperatureModelName,
-              temperatureModelVersion: prediction.temperatureModelVersion,
-              temperaturePredictionSource: prediction.temperaturePredictionSource,
-              currentModelName: prediction.currentModelName,
-              currentModelVersion: prediction.currentModelVersion,
-              currentPredictionSource: prediction.currentPredictionSource,
-              vibrationModelName: prediction.vibrationModelName,
-              vibrationModelVersion: prediction.vibrationModelVersion,
-              vibrationPredictionSource: prediction.vibrationPredictionSource,
-            })
-          }
-        } catch (err) {
-          console.error('Error saving ML temperature prediction', err)
-        }
-      }
-
-      results.push({ horizon, prediction })
-
-      try {
-        await createPredictedAlerts(machine, prediction, horizon)
-      } catch (err) {
-        console.error('Error creating predicted alerts', err)
-      }
+      tempForecast.push(Math.max(0, Math.round((pTemp + (Math.random() - 0.5) * tempAvg * 0.01) * 10) / 10));
+      currForecast.push(Math.max(0, Math.round((pCurr + (Math.random() - 0.5) * currAvg * 0.01) * 10) / 10));
+      vibForecast.push(Math.max(0, Math.round((pVib + (Math.random() - 0.5) * vibAvg * 0.01) * 10) / 10));
     }
   }
 
-  return results
+  // Define index mapping for horizons: 15m (index 5), 30m (index 11), 45m (index 17), 1h (index 23)
+  const targetHorizons = ["15m", "30m", "45m", "1h"];
+  const horizonIndices = {
+    "15m": 5,
+    "30m": 11,
+    "45m": 17,
+    "1h": 23
+  };
+
+  for (const targetHorizon of targetHorizons) {
+    const idx = horizonIndices[targetHorizon];
+    
+    const slicedTempForecast = tempForecast.slice(0, idx + 1);
+    const slicedCurrForecast = currForecast.slice(0, idx + 1);
+    const slicedVibForecast = vibForecast.slice(0, idx + 1);
+
+    const predictionDoc = new Prediction({
+      machineId: machine._id,
+      horizon: targetHorizon,
+      temperature: slicedTempForecast[idx],
+      current: slicedCurrForecast[idx],
+      vibration: slicedVibForecast[idx],
+      confidence: Math.round(confidence * 100) / 100,
+      forecastValues: slicedTempForecast,
+      temperatureForecastValues: slicedTempForecast,
+      currentForecastValues: slicedCurrForecast,
+      vibrationForecastValues: slicedVibForecast,
+      modelName,
+      modelVersion,
+      predictionSource,
+      temperatureModelName: modelName,
+      temperatureModelVersion: modelVersion,
+      temperaturePredictionSource: predictionSource,
+      currentModelName: modelName,
+      currentModelVersion: modelVersion,
+      currentPredictionSource: predictionSource,
+      vibrationModelName: modelName,
+      vibrationModelVersion: modelVersion,
+      vibrationPredictionSource: predictionSource,
+      createdAt: new Date()
+    });
+
+    await predictionDoc.save();
+    results.push({ horizon: targetHorizon, prediction: predictionDoc });
+
+    try {
+      await createPredictedAlerts(machine, predictionDoc, targetHorizon);
+    } catch (err) {
+      console.error('Error creating predicted alerts', err);
+    }
+  }
+
+  return results;
 }
 
 export class MachineDataIngestionService {

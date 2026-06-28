@@ -116,7 +116,7 @@ class MaintenanceServiceImpl {
     if (!prediction) return []
 
     const recommendations = []
-    const horizonLabels = { '15m': '15 minutes', '1h': '1 hour', '6h': '6 hours', '24h': '24 hours' }
+    const horizonLabels = { '15m': '15 minutes', '30m': '30 minutes', '45m': '45 minutes', '1h': '1 hour' }
     const timeframe = horizonLabels[horizonKey] || horizonKey
 
     // Analyze predicted values
