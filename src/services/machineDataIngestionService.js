@@ -480,37 +480,45 @@ const createPredictedAlerts = async (machine, prediction, horizonKey) => {
 };
 
 const generatePredictions = async (machine) => {
-  console.log('About to generate predictions for machine:', machine._id.toString())
+  console.log(`[ML Pipeline] Starting prediction generation for machine: ${machine.machineName || machine._id}`);
   const results = []
   if (machine.status === 'PENDING') return results
-
+  
   const [temperatureValues, currentValues, vibrationValues] = await Promise.all([
     getLatestSignalValues(machine._id, "temperature"),
     getLatestSignalValues(machine._id, "current"),
     getLatestSignalValues(machine._id, "vibration"),
-  ])
+  ]);
+
+  const tempCount = temperatureValues ? temperatureValues.length : 0;
+  const currCount = currentValues ? currentValues.length : 0;
+  const vibCount = vibrationValues ? vibrationValues.length : 0;
+
+  console.log(`[ML Pipeline] Historical readings - Temp: ${tempCount}, Curr: ${currCount}, Vib: ${vibCount}`);
+  console.log(`[ML Pipeline] getLatestSignalValues() returns 61 values? Temp: ${tempCount === 61}, Curr: ${currCount === 61}, Vib: ${vibCount === 61}`);
 
   const latestTemperature = temperatureValues?.[temperatureValues.length - 1] ?? 0;
   const latestCurrent = currentValues?.[currentValues.length - 1] ?? 0;
   const latestVibration = vibrationValues?.[vibrationValues.length - 1] ?? 0;
-
-  console.log("Temperature values found:", temperatureValues ? temperatureValues.length : 0)
-  console.log("Current values found:", currentValues ? currentValues.length : 0)
-  console.log("Vibration values found:", vibrationValues ? vibrationValues.length : 0)
 
   // Try running ML predictions
   let mlTemperature = null;
   let mlCurrent = null;
   let mlVibration = null;
 
-  if (temperatureValues && temperatureValues.length >= 61 &&
-      currentValues && currentValues.length >= 61 &&
-      vibrationValues && vibrationValues.length >= 61) {
+  const canRunMl = temperatureValues && temperatureValues.length >= 61 &&
+                   currentValues && currentValues.length >= 61 &&
+                   vibrationValues && vibrationValues.length >= 61;
+
+  console.log(`[ML Pipeline] Whether runMlPrediction() is called: ${!!canRunMl}`);
+
+  if (canRunMl) {
+    console.log(`[ML Pipeline] Calling predictTemperature(), predictCurrent(), and predictVibration()`);
     [mlTemperature, mlCurrent, mlVibration] = await Promise.all([
       runMlPrediction("temperature", temperatureValues, predictTemperature),
       runMlPrediction("current", currentValues, predictCurrent),
       runMlPrediction("vibration", vibrationValues, predictVibration),
-    ])
+    ]);
   }
 
   let tempForecast = [];
@@ -524,6 +532,15 @@ const generatePredictions = async (machine) => {
   const hasMlData = mlTemperature && Array.isArray(mlTemperature.forecast) && mlTemperature.forecast.length > 0 &&
                     mlCurrent && Array.isArray(mlCurrent.forecast) && mlCurrent.forecast.length > 0 &&
                     mlVibration && Array.isArray(mlVibration.forecast) && mlVibration.forecast.length > 0;
+
+  console.log(`[ML Pipeline] hasMlData evaluation: ${hasMlData}`);
+  if (!hasMlData) {
+    console.log(`[ML Pipeline] Failing conditions for hasMlData:`, {
+      mlTemperatureValid: !!(mlTemperature && Array.isArray(mlTemperature.forecast) && mlTemperature.forecast.length > 0),
+      mlCurrentValid: !!(mlCurrent && Array.isArray(mlCurrent.forecast) && mlCurrent.forecast.length > 0),
+      mlVibrationValid: !!(mlVibration && Array.isArray(mlVibration.forecast) && mlVibration.forecast.length > 0)
+    });
+  }
 
   if (hasMlData) {
     tempForecast = mlTemperature.forecast.map(v => Math.max(0, Math.min(120, Number(v) < 0 ? latestTemperature : Number(v))));
