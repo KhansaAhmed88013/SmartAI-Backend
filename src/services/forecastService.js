@@ -28,9 +28,10 @@ class ForecastServiceImpl {
       return Math.round((projection + noise) * 10) / 10
     }
 
-    const predictedTemp = predict(tempAvg, 'temperature')
-    const predictedVib = predict(vibAvg, 'vibration')
-    const predictedCurr = predict(currAvg, 'current')
+    const clamp = (val, min, max) => Math.min(max, Math.max(min, val))
+    const predictedTemp = clamp(predict(tempAvg, 'temperature'), 0, 120)
+    const predictedVib = clamp(predict(vibAvg, 'vibration'), 0, 20)
+    const predictedCurr = clamp(predict(currAvg, 'current'), 0, 100)
 
     const confidence = Math.max(0.2, Math.min(0.99, 0.95 - (minutes / 1440) * 0.25 - (1 / reversed.length)))
 

@@ -526,9 +526,9 @@ const generatePredictions = async (machine) => {
                     mlVibration && Array.isArray(mlVibration.forecast) && mlVibration.forecast.length > 0;
 
   if (hasMlData) {
-    tempForecast = mlTemperature.forecast.map(v => Number(v) < 0 ? latestTemperature : Number(v));
-    currForecast = mlCurrent.forecast.map(v => Number(v) < 0 ? latestCurrent : Number(v));
-    vibForecast = mlVibration.forecast.map(v => Number(v) < 0 ? latestVibration : Number(v));
+    tempForecast = mlTemperature.forecast.map(v => Math.max(0, Math.min(120, Number(v) < 0 ? latestTemperature : Number(v))));
+    currForecast = mlCurrent.forecast.map(v => Math.max(0, Math.min(100, Number(v) < 0 ? latestCurrent : Number(v))));
+    vibForecast = mlVibration.forecast.map(v => Math.max(0, Math.min(20, Number(v) < 0 ? latestVibration : Number(v))));
     confidence = mlTemperature.confidence ?? DEFAULT_ML_CONFIDENCE;
   } else {
     // FALLBACK generator to produce exactly 24 points at 2.5 min intervals using simple forecast
@@ -562,9 +562,13 @@ const generatePredictions = async (machine) => {
       const pCurr = currAvg + ((lastCurr - firstCurr) / minutesSpan) * minutes;
       const pVib = vibAvg + ((lastVib - firstVib) / minutesSpan) * minutes;
 
-      tempForecast.push(Math.max(0, Math.round((pTemp + (Math.random() - 0.5) * tempAvg * 0.01) * 10) / 10));
-      currForecast.push(Math.max(0, Math.round((pCurr + (Math.random() - 0.5) * currAvg * 0.01) * 10) / 10));
-      vibForecast.push(Math.max(0, Math.round((pVib + (Math.random() - 0.5) * vibAvg * 0.01) * 10) / 10));
+      const valTemp = Math.max(0, Math.min(120, Math.round((pTemp + (Math.random() - 0.5) * tempAvg * 0.01) * 10) / 10));
+      const valCurr = Math.max(0, Math.min(100, Math.round((pCurr + (Math.random() - 0.5) * currAvg * 0.01) * 10) / 10));
+      const valVib = Math.max(0, Math.min(20, Math.round((pVib + (Math.random() - 0.5) * vibAvg * 0.01) * 10) / 10));
+
+      tempForecast.push(valTemp);
+      currForecast.push(valCurr);
+      vibForecast.push(valVib);
     }
   }
 
