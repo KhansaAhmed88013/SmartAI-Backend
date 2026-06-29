@@ -6,8 +6,8 @@ export function startRetrainCron() {
     //cron.schedule("*/10 * * * *", ...) for every 10 minutes
     //cron.schedule("0 3 * * 0", ...) for every Sunday at 3 AM
     
-  cron.schedule("0 3 * * 0", () => {
-    console.log("Starting weekly model retraining...");
+  cron.schedule("/3 * * * *", () => {
+    console.log("Starting daily model retraining...");
 
     const scriptPath = path.join(
       process.cwd(),
