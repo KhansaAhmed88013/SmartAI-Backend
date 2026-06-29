@@ -18,36 +18,21 @@ router.get('/model-performance', authenticate, async (req, res) => {
       mae: Number(tempEval.newMAE.toFixed(4)),
       rmse: Number(tempEval.newRMSE.toFixed(4)),
       mape: Number(tempEval.newMAPE.toFixed(2))
-    } : {
-      accuracy: 94.25,
-      mae: 0.7841,
-      rmse: 1.0482,
-      mape: 5.75
-    }
+    } : null
 
     const currMetrics = currEval ? {
       accuracy: Number(currEval.accuracy.toFixed(2)),
       mae: Number(currEval.newMAE.toFixed(4)),
       rmse: Number(currEval.newRMSE.toFixed(4)),
       mape: Number(currEval.newMAPE.toFixed(2))
-    } : {
-      accuracy: 93.82,
-      mae: 0.6814,
-      rmse: 0.9125,
-      mape: 6.18
-    }
+    } : null
 
     const vibMetrics = vibEval ? {
       accuracy: Number(vibEval.accuracy.toFixed(2)),
       mae: Number(vibEval.newMAE.toFixed(4)),
       rmse: Number(vibEval.newRMSE.toFixed(4)),
       mape: Number(vibEval.newMAPE.toFixed(2))
-    } : {
-      accuracy: 95.14,
-      mae: 0.1254,
-      rmse: 0.1873,
-      mape: 4.86
-    }
+    } : null
 
     const allEvals = [tempEval, currEval, vibEval].filter(Boolean)
     const lastEvaluated = allEvals.length > 0
@@ -75,6 +60,22 @@ router.get('/predictions/:machineId', authenticate, requireRoles('MAINTENANCE_EN
   const { machineId } = req.params
   const horizon = req.query.horizon || '1h'
   const preds = await Prediction.find({ machineId, horizon }).sort({ createdAt: -1 }).limit(10)
+  
+  console.log(`[Backend API] GET /api/predictions/${machineId}?horizon=${horizon} - Found ${preds.length} predictions`);
+  preds.forEach((p, idx) => {
+    console.log(`[Backend API] Prediction index ${idx}:
+      _id: ${p._id}
+      createdAt: ${p.createdAt}
+      horizon: ${p.horizon}
+      temperature: ${p.temperature}
+      vibration: ${p.vibration}
+      current: ${p.current}
+      forecastValues: ${JSON.stringify(p.forecastValues)}
+      temperatureForecastValues: ${JSON.stringify(p.temperatureForecastValues)}
+      currentForecastValues: ${JSON.stringify(p.currentForecastValues)}
+      vibrationForecastValues: ${JSON.stringify(p.vibrationForecastValues)}`);
+  });
+
   res.json(preds)
 })
 
