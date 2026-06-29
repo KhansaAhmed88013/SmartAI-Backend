@@ -10,6 +10,14 @@ const modelEvaluationSchema = new mongoose.Schema(
     oldRMSE: Number,
     newRMSE: Number,
 
+    oldMAPE: Number,
+    newMAPE: Number,
+
+    oldAccuracy: Number,
+    newAccuracy: Number,
+
+    accuracy: Number,
+
     winner: String,
 
     evaluatedAt: {

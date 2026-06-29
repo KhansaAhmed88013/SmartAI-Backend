@@ -270,6 +270,7 @@ print(new_pred_real[:5])
 
 from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import mean_squared_error
+import datetime
 
 old_mae = mean_absolute_error(
     actual_future,
@@ -295,6 +296,12 @@ new_rmse = np.sqrt(
     )
 )
 
+old_mape = float(np.mean(np.abs((actual_future - old_pred_real) / np.maximum(np.abs(actual_future), 1e-5))) * 100)
+new_mape = float(np.mean(np.abs((actual_future - new_pred_real) / np.maximum(np.abs(actual_future), 1e-5))) * 100)
+
+old_accuracy = max(0.0, 100.0 - old_mape)
+new_accuracy = max(0.0, 100.0 - new_mape)
+
 print("\n===== RESULTS =====")
 
 print(f"OLD MAE  : {old_mae:.4f}")
@@ -303,6 +310,12 @@ print(f"NEW MAE  : {new_mae:.4f}")
 print(f"OLD RMSE : {old_rmse:.4f}")
 print(f"NEW RMSE : {new_rmse:.4f}")
 
+print(f"OLD MAPE : {old_mape:.4f}%")
+print(f"NEW MAPE : {new_mape:.4f}%")
+
+print(f"OLD ACCURACY : {old_accuracy:.2f}%")
+print(f"NEW ACCURACY : {new_accuracy:.2f}%")
+
 if new_rmse < old_rmse:
     winner = "RETRAINED MODEL"
 else:
@@ -310,6 +323,24 @@ else:
 
 print("\nWINNER:")
 print(winner)
+
+# Store evaluation results in MongoDB
+eval_record = {
+    "modelName": "current",
+    "oldMAE": float(old_mae),
+    "newMAE": float(new_mae),
+    "oldRMSE": float(old_rmse),
+    "newRMSE": float(new_rmse),
+    "oldMAPE": float(old_mape),
+    "newMAPE": float(new_mape),
+    "oldAccuracy": float(old_accuracy),
+    "newAccuracy": float(new_accuracy),
+    "accuracy": float(new_accuracy if winner == "RETRAINED MODEL" else old_accuracy),
+    "winner": winner,
+    "evaluatedAt": datetime.datetime.utcnow()
+}
+db["modelevaluations"].insert_one(eval_record)
+print("Evaluation results saved to MongoDB.")
 
 active_models_file = os.path.abspath(
     os.path.join(
