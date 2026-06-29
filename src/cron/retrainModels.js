@@ -1,11 +1,12 @@
   // cron.schedule("0 3 * * 0", ...) for every Sunday at 3 AM
+    // cron.schedule(*/10 * * * *", ...) for every 10 minutes
 import cron from "node-cron";
 
 let retrainingRunning = false;
 
 export function startRetrainCron() {
 
-  cron.schedule("*/10 * * * *", async () => {
+  cron.schedule("0 3 * * 0", async () => {
 
     if (retrainingRunning) {
       console.log("[CRON] Retraining already running. Skipping this cycle.");
