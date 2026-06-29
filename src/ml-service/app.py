@@ -359,9 +359,75 @@ def health():
     }
 
 
+import sys
+import subprocess
+import time
+from datetime import datetime
+
 # --------------------------------------------------
 # Routes
 # --------------------------------------------------
+
+@app.post("/retrain")
+def retrain():
+    started_at = datetime.utcnow().isoformat()
+    start_time = time.time()
+    
+    script_path = str(BASE_DIR / "retrain" / "retrain_all.py")
+    print(f"[FASTAPI] Starting retraining... script: {script_path}")
+    
+    try:
+        result = subprocess.run(
+            [sys.executable, script_path],
+            capture_output=True,
+            text=True
+        )
+        
+        duration = time.time() - start_time
+        finished_at = datetime.utcnow().isoformat()
+        
+        success = (result.returncode == 0)
+        
+        response_data = {
+            "success": success,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "startedAt": started_at,
+            "finishedAt": finished_at,
+            "durationSeconds": round(duration, 2)
+        }
+        
+        if result.stdout:
+            print(result.stdout)
+        if result.stderr:
+            print(result.stderr, file=sys.stderr)
+            
+        if not success:
+            raise HTTPException(
+                status_code=500,
+                detail=response_data
+            )
+            
+        print("[FASTAPI] Retraining completed successfully")
+        return response_data
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        duration = time.time() - start_time
+        finished_at = datetime.utcnow().isoformat()
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "success": False,
+                "stdout": "",
+                "stderr": str(e),
+                "startedAt": started_at,
+                "finishedAt": finished_at,
+                "durationSeconds": round(duration, 2)
+            }
+        )
+
 
 @app.post("/predict")
 def predict(req: PredictRequest):
