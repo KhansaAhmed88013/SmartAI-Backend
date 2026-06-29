@@ -22,11 +22,21 @@ for name, script in steps:
     print(f"{'=' * 60}\n")
 
     result = subprocess.run(
-        [sys.executable, str(script)]
-    )
+    [sys.executable, str(script)],
+    capture_output=True,
+    text=True
+)
 
-    if result.returncode != 0:
-        print(f"\nFAILED: {name}")
-        sys.exit(1)
+print(result.stdout)
+
+if result.stderr:
+    print("\n================ STDERR ================\n")
+    print(result.stderr)
+
+print(f"\nReturn Code: {result.returncode}")
+
+if result.returncode != 0:
+    print(f"\nFAILED: {name}")
+    sys.exit(1)
 
 print("\nAll retraining and evaluations completed successfully!")
