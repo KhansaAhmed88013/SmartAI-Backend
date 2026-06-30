@@ -69,7 +69,7 @@ router.get('/pending', authenticate, requireRoles('SYSTEM_ADMIN'), async (req, r
 })
 
 // Admin: optional manual registration (if needed)
-router.post('/', authenticate, requireRoles('SYSTEM_ADMIN'), async (req, res) => {
+router.post('/', async (req, res) => {
   const { hardwareId, machineName, location, speed, thresholds, status } = req.body
   if (!hardwareId) return res.status(400).json({ message: 'hardwareId is required' })
   const exists = await Machine.findOne({ hardwareId })
